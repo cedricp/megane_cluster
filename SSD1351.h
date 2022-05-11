@@ -109,7 +109,8 @@ class SSD1351 : public SPITFT {
          invertDisplay(boolean i), // Preferred syntax (same as other screens)
          invert(boolean i),        // For compatibility with old code
          enableDisplay(boolean enable),
-         setAddrWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+         setAddrWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h),
+		 set_brightness(char val);
 };
 
 #endif // _Adafruit_SSD1351_H_

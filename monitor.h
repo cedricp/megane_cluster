@@ -4,12 +4,12 @@
 #include "mcp_can.h"
 
 enum ecu_ids {
-	CANID_UCH_SYSTEM 		= 0x035d,
-	CANID_UCH_GENERAL 		= 0x060d,
-	CANID_CLUSTER_BACKUP 	= 0x0715,
-	CANID_ECM_GENERAL 		= 0x0551,
-	CANID_BRAKE_DATA 		= 0x0354,
-	CANID_UPC_GENERAL 		= 0x0625
+	CANID_UCH_SYSTEM 		= 0x35d,
+	CANID_UCH_GENERAL 		= 0x60d,
+	CANID_CLUSTER_BACKUP 	= 0x715,
+	CANID_ECM_GENERAL 		= 0x551,
+	CANID_BRAKE_DATA 		= 0x354,
+	CANID_UPC_GENERAL 		= 0x625
 };
 
 enum cruise_control_ids {
@@ -36,19 +36,20 @@ class Can_monitor {
 	unsigned long m_global_timer = 0;
 	unsigned long m_frame_count = 0;
 	unsigned long m_engine_last_timestamp = 0;
-	unsigned long m_fuel_accum_time = 0;
+	//unsigned long m_fuel_accum_time = 0;
 	unsigned long m_mm3perhour = 0;
 
 	uint8_t m_last_fuel_data = 0;
-	uint8_t m_fuel_acc = 0;
+	uint32_t m_fuel_acc = 0;
 
 	bool m_fuel_stat_available = false;
 
-	void handle_ecm(uint8_t data[]);
+	void handle_ecm();
 public:
 
 	inline bool is_data_init(){
-		return (m_data_available & 0b00111111) == 0b00111111;
+		// don't care about ECM
+		return (m_data_available & 0b00011111) == 0b00011111;
 	}
 
 	inline uint8_t fuel_level_inst() {
@@ -63,12 +64,11 @@ public:
 
 	bool monitor();
 	String get_instant_consumption();
+	String get_instant_consumption_unit();
 
 	bool is_fuel_data_available(){
 		bool ret = m_fuel_stat_available;
-		if (ret){
-			m_fuel_stat_available = false;
-		}
+		m_fuel_stat_available = false;
 		return ret;
 	}
 

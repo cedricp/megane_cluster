@@ -2,24 +2,10 @@
 
 #define CAN_LED 9
 
-extern unsigned long g_can_last_int;
-
 static uint8_t can_led_status = 0;
 
 Can_monitor::Can_monitor(MCP_CAN& c) :
 		m_can(c), m_global_timer(millis()) {
-	/*
-	 * MASK 0 -> FILTER 0, 1
-	 * MASK 1 -> FILTER 2, 3, 4, 5
-	 */
-	m_can.init_Mask(0, false, 0x7FF);
-	m_can.init_Mask(0, false, 0x7FF);
-	m_can.init_Filt(0, false, CANID_UCH_GENERAL);
-	m_can.init_Filt(1, false, CANID_CLUSTER_BACKUP);
-	m_can.init_Filt(2, false, CANID_ECM_GENERAL);
-	m_can.init_Filt(3, false, CANID_BRAKE_DATA);
-	m_can.init_Filt(4, false, CANID_UPC_GENERAL);
-	m_can.init_Filt(5, false, CANID_UCH_SYSTEM);
 
 	/*
 	 * Reset frame storage
@@ -42,48 +28,55 @@ Can_monitor::~Can_monitor() {
 }
 
 void
-Can_monitor::handle_ecm(uint8_t data[]) {
-	unsigned long current_time = millis();
-	unsigned long diff_time = current_time - m_engine_last_timestamp;
-	memcpy(m_engine_general, data, 8);
+Can_monitor::handle_ecm() {
 	uint8_t fuel_data = m_engine_general[1];
 	uint8_t fuel_diff = fuel_data - m_last_fuel_data;
+	if (fuel_diff == 0) return;
+	unsigned long current_time = millis();
+	unsigned long diff_time = current_time - m_engine_last_timestamp;
 
 	m_fuel_acc += fuel_diff;
-	m_fuel_accum_time += diff_time;
 
-	if (m_fuel_accum_time > 1500) {
-		m_mm3perhour = (m_fuel_acc * 288000000) / (m_fuel_accum_time);
-		m_fuel_accum_time = 0;
+	if (diff_time > 1000) {
+		m_mm3perhour = (m_fuel_acc * 288000) / (diff_time);
 		m_fuel_acc = 0;
 		m_fuel_stat_available = true;
+		m_engine_last_timestamp = current_time;
 	}
 
-	m_engine_last_timestamp = current_time;
 	m_last_fuel_data = fuel_data;
 }
+
+/*
+ * 5.6 30
+ *     100
+ */
 
 String
 Can_monitor::get_instant_consumption()
 {
-	String result;
-	if (m_mm3perhour > 0){
-		float speed = get_speed_raw();
+	char buf[20];
+	float speed = get_speed_raw();
 
-		// convert mm3 to liters (1L = 1dm3) 1dm3 = 1e6mm3
-		float dm3perhour = m_mm3perhour;
-		dm3perhour *= 1e-6f;
-		if (speed > 3000){
-			result.concat((10000.f/speed) * dm3perhour);
-			result.concat("L/100");
-		} else {
-			result.concat(dm3perhour);
-			result.concat("L/h");
-		}
+	// convert mm3 to liters (1L = 1dm3) 1dm3 = 1e6mm3
+	float dm3perhour = m_mm3perhour;
+	dm3perhour *= 1e-3f;
+	if (speed > 3000){
+		return dtostrf((dm3perhour * 10000.f) / speed, 4, 1, buf);
 	} else {
-		result.concat("---");
+		return dtostrf(dm3perhour, 4, 1, buf);
 	}
-	return result;
+}
+
+String
+Can_monitor::get_instant_consumption_unit()
+{
+	float speed = get_speed_raw();
+	if (speed > 3000){
+		return "100";
+	} else {
+		return "h  ";
+	}
 }
 
 bool
@@ -94,9 +87,7 @@ Can_monitor::monitor() {
 
 	unsigned long can_id;
 	uint8_t len;
-	if (m_can.readMsgBuf(&can_id, &len, recv_frame) == CAN_OK) {
-		can_led_status = !can_led_status;
-		digitalWrite(CAN_LED, can_led_status);
+	while (m_can.readMsgBuf(&can_id, &len, recv_frame) == CAN_OK) {
 		switch (can_id) {
 		case CANID_UCH_GENERAL:
 			m_data_available |= 0b00000001;
@@ -119,16 +110,17 @@ Can_monitor::monitor() {
 			memcpy(m_upc_data, recv_frame, len);
 			break;
 		case CANID_ECM_GENERAL:
+			can_led_status = !can_led_status;
+			digitalWrite(CAN_LED, can_led_status);
 			m_data_available |= 0b00100000;
-			handle_ecm(recv_frame);
+			memcpy(m_engine_general, recv_frame, 8);
+			handle_ecm();
 			break;
 		default:
 			break;
 		}
 		++m_frame_count;
-		return true;
 	}
-	return false;
-
+	return true;
 }
 

@@ -241,6 +241,12 @@ void SSD1351::begin(uint32_t freq) {
   setRotation(0);
 }
 
+void SSD1351::set_brightness(char val)
+{
+	uint8_t addr_val = val;
+	sendCommand(SSD1351_CMD_CONTRASTMASTER, &addr_val, 1);
+}
+
 // GFX FUNCTIONS -----------------------------------------------------------
 
 /*!

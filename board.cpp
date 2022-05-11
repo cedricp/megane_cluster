@@ -6,6 +6,10 @@
 #define CHAR_WIDTH 6
 #define CHAR_HEIGHT 8
 
+extern bool g_can_data_availabe;
+extern int g_can_status;
+extern Can_monitor monitor;
+
 void Widget::draw(SSD1351& display, String value, int text_size, int color) {
 	display.fillRect(m_x, m_y, m_w, m_h, SSD1351::BLACK);
 	display.setTextSize(text_size);
@@ -46,9 +50,9 @@ void Widget::draw(SSD1351& display, String value, int text_size, int color) {
 
 Board::Board(SSD1351& lcd, Can_monitor& monitor) : m_display(lcd), m_monitor(monitor)
 {
-	m_speed.set_pow(12);
+	m_speed.set_pow(8);
 	m_fuel_level.set_max(90);
-	m_battery_volt.set_pow(18);
+	m_battery_volt.set_pow(9);
 }
 
 Board::~Board()
@@ -64,14 +68,14 @@ Board::init() {
 	set_battery();
 	set_coolant();
 	set_oil_level();
-	set_speed();
-	set_consumption();
-	set_cc_status();
+	set_speed(true);
+	set_consumption(true);
 	set_fuel();
 	m_display.fillRect(0, 75, 128, 53, SSD1351::BLACK);
-	set_power();
 	set_aircon_status();
 	set_door_status(true);
+	set_tires_info();
+	set_cc_status();
 }
 
 void
@@ -98,6 +102,106 @@ Board::set_door_status(bool init)
 		if (m_right_door){
 			m_display.drawRGBBitmap(44, 76+20, car_small_open, 40, 33, 26, 40, 0, 20);
 		}
+	}
+}
+
+void
+Board::set_tires_info()
+{
+	char buff[5];
+	m_display.setTextSize(1);
+	
+	tireInfo& nfo = m_tires[0];
+	if (nfo.up2date){
+		// LF
+		m_display.setCursor(34,76);
+		if (nfo.lowbatt){
+			m_display.setTextColor(SSD1351::RED);
+		} else if (nfo.leak){
+			m_display.setTextColor(SSD1351::YELLOW);
+		} else {
+			m_display.setTextColor(SSD1351::WHITE);
+		}
+		if (nfo.nosignal){
+			snprintf(buff, 3, "--");
+		} else {
+			snprintf(buff, 3, "%02i", nfo.pressure * 344 / 1000);
+		}
+		m_display.print(buff);
+		m_display.setCursor(34-5,76+8);
+		snprintf(buff, 4, "%02i%c", nfo.temp, 247);
+		m_display.setTextColor(SSD1351::CYAN);
+		m_display.print(buff);
+		nfo.up2date = false;
+	}
+	nfo = m_tires[1];
+	if (nfo.up2date){
+		// RF
+		m_display.setCursor(80,76);
+		if (nfo.lowbatt){
+			m_display.setTextColor(SSD1351::RED);
+		} else if (nfo.leak){
+			m_display.setTextColor(SSD1351::YELLOW);
+		} else {
+			m_display.setTextColor(SSD1351::WHITE);
+		}
+		if (nfo.nosignal){
+			snprintf(buff, 3, "--");
+		} else {
+			snprintf(buff, 3, "%02i", nfo.pressure * 344 / 1000);
+		}
+		m_display.print(buff);
+		m_display.setCursor(80,76+8);
+		snprintf(buff, 4, "%02i%c", nfo.temp, 247);
+		m_display.setTextColor(SSD1351::CYAN);
+		m_display.print(buff);
+		nfo.up2date = false;
+	}
+	nfo = m_tires[2];
+	if (nfo.up2date){
+		// LR
+		m_display.setCursor(34,120);
+		if (nfo.lowbatt){
+			m_display.setTextColor(SSD1351::RED);
+		} else if (nfo.leak){
+			m_display.setTextColor(SSD1351::YELLOW);
+		} else {
+			m_display.setTextColor(SSD1351::WHITE);
+		}
+		if (nfo.nosignal){
+			snprintf(buff, 3, "--");
+		} else {
+			snprintf(buff, 3, "%02i", nfo.pressure * 344 / 1000);
+		}
+		m_display.print(buff);
+		m_display.setCursor(34-5,120-8);
+		snprintf(buff, 4, "%02i%c", nfo.temp, 247);
+		m_display.setTextColor(SSD1351::CYAN);
+		m_display.print(buff);
+		nfo.up2date = false;
+	}
+	nfo = m_tires[3];
+	if (nfo.up2date){
+		// RR
+		m_display.setCursor(80,120);
+		if (nfo.lowbatt){
+			m_display.setTextColor(SSD1351::RED);
+		} else if (nfo.leak){
+			m_display.setTextColor(SSD1351::YELLOW);
+		} else {
+			m_display.setTextColor(SSD1351::WHITE);
+		}
+		if (nfo.nosignal){
+			snprintf(buff, 3, "--");
+		} else {
+			snprintf(buff, 3, "%02i", nfo.pressure * 344 / 1000);
+		}
+		m_display.print(buff);
+		m_display.setCursor(80,120-8);
+		snprintf(buff, 4, "%02i%c", nfo.temp, 247);
+		m_display.setTextColor(SSD1351::CYAN);
+		m_display.print(buff);
+		nfo.up2date = false;
 	}
 }
 
@@ -132,23 +236,6 @@ Board::set_external_temp() {
 	m_display.setTextSize(2);
 	m_display.setTextColor(color);
 	m_display.print(buff);
-}
-
-void
-Board::set_power() {
-	char buff[10];
-	int color;
-	int power = m_power.get_value();
-	if (power  > 1000){
-		color = SSD1351::YELLOW;
-	} else if (power  > 2000){
-		color = SSD1351::GREEN;
-	} else {
-		color = SSD1351::BLUE;
-	}
-	snprintf(buff, 10, "%dW", power);
-	Widget w("POWER", 0, 75, CHAR_WIDTH * 6, CHAR_HEIGHT * 2 + 1 , Widget::VERTICAL);
-	w.draw(m_display, buff, 1, color);
 }
 
 void
@@ -225,72 +312,47 @@ Board::set_oil_level() {
 }
 
 void
-Board::set_speed() {
+Board::set_speed(bool init) {
 	char buff[4];
-	snprintf(buff, 7, "%03d", m_speed.get_value());
+	snprintf(buff, 7, "%03d", (int)m_speed.get_value());
 	m_display.setTextColor(SSD1351::WHITE, SSD1351::BLACK);
-	m_display.fillRect(0, 36, 72, 38, SSD1351::BLACK);
-	m_display.setTextSize(4);
-	m_display.setCursor(0, 41);
+	if (init)
+		m_display.fillRect(0, 36, 54, 38, SSD1351::BLACK);
+	m_display.setTextSize(3);
+	m_display.setCursor(0, 45);
 	m_display.print(buff);
 }
 
 void
-Board::set_consumption()
+Board::set_consumption(bool init)
 {
 	String label = m_monitor.get_instant_consumption();
-	int margin = (55 - label.length() * CHAR_WIDTH) / 2;
-	m_display.fillRect(73, 36, 55, 9, SSD1351::BLACK);
-	m_display.setTextSize(1);
-	m_display.setCursor(73 + margin, 37);
+	if (init)
+		m_display.fillRect(55, 36, 93, 19, SSD1351::BLACK);
+	m_display.setTextSize(2);
+	m_display.setCursor(57, 38);
 	m_display.setTextColor(SSD1351::WHITE, SSD1351::BLACK);
 	m_display.print(label);
-}
-
-void
-Board::set_cc_status()
-{
-	String buff;
-	int color = SSD1351::GREEN;
-	bool free = false;
-	if (m_cruise_control_mode == CC_ACTIVE){
-		buff = "CC:";
-		color = SSD1351::GREEN;
-	} else if (m_cruise_control_mode == CC_INACTIVE){
-		buff = "CC:";
-		color = SSD1351::YELLOW;
-	} else if (m_cruise_control_mode == LIMITER_ACTIVE){
-		buff = "SL:";
-		color = SSD1351::GREEN;
-	} else if (m_cruise_control_mode == LIMITER_INACTIVE){
-		buff = "SL:";
-		color = SSD1351::YELLOW;
-	} else {
-		buff = "   FREE  ";
-		free = true;
-	}
-	if (!free){
-		if (m_cruise_control_speed.get_value() >= 254){
-			buff += "N/A";
-		} else if (m_cruise_control_mode != OFF){
-			buff += m_cruise_control_speed.get_value();
-			buff += "Kmh";
-		}
-	}
 	m_display.setTextSize(1);
-	m_display.fillRect(73, 46, 55, 9, SSD1351::BLACK);
-	m_display.setCursor(74, 47);
-	m_display.setTextColor(color, SSD1351::BLACK);
-	m_display.print(buff);
+	int x = m_display.getCursorX();
+	int y = m_display.getCursorY();
+	m_display.println("L");
+	m_display.setCursor(x, y+8);
+	m_display.println(m_monitor.get_instant_consumption_unit());
 }
 
 void
 Board::set_fuel()
 {
-	char buff[5];
-	snprintf(buff, 7, " %02dL", m_fuel_level.get_value());
-	m_display.fillRect(73, 56, 55, 18, SSD1351::BLACK);
-	m_display.setCursor(73, 58);
+	char buff[7];
+	int fuel_lvl = m_fuel_level.get_value();
+	if (fuel_lvl > 70){
+		snprintf(buff, 7, "--L");
+	} else {
+		snprintf(buff, 7, "%02dL", fuel_lvl);
+	}
+	m_display.fillRect(55, 56, 93, 18, SSD1351::BLACK);
+	m_display.setCursor(74, 58);
 	m_display.setTextSize(2);
 	if(m_fuel_level.get_value() > 15){
 		m_display.setTextColor(SSD1351::GREEN, SSD1351::BLACK);
@@ -300,6 +362,38 @@ Board::set_fuel()
 		m_display.setTextColor(SSD1351::RED, SSD1351::BLACK);
 	}
 	m_display.print(buff);
+}
+
+
+void
+Board::set_cc_status()
+{
+	int color = SSD1351::GREEN;
+	bool free = true;
+
+	m_display.setCursor(7, 95);
+	m_display.setTextSize(2);
+	if (m_cruise_control_mode != OFF){
+		uint8_t cc_speed = m_cruise_control_speed.get_value();
+		if (cc_speed >= 254){
+			m_display.print("---");
+		} else if (cc_speed < 100){
+			m_display.print(" ");
+			m_display.print(cc_speed);
+		} else {
+			m_display.print(cc_speed);
+		}
+	} else {
+		m_display.print("   ");
+	}
+}
+
+inline void
+check_can_data()
+{
+	if (g_can_status == CAN_OK){
+		monitor.monitor();
+	}
 }
 
 void
@@ -316,56 +410,63 @@ Board::update(bool init) {
 	int cc_speed = m_monitor.cruise_control_speed();
 	int fuel_level = m_monitor.fuel_level_inst();
 	float battery = m_monitor.battery_voltage_raw();
-	//long mm3 = m_monitor.get_mm3();
-	int power = m_monitor.total_electric_power();
 	int aircon = m_monitor.ac_status();
+	check_can_data();
 
-	unsigned long current_time = millis();
-
-	if (m_power.filter(power) || init){
-		set_power();
-	}
 	if (m_kilometers.set_value(kilometers) || init){
 		set_mileage();
 	}
+	check_can_data();
+
 	if (m_ext_temp.filter(ext_temp) || init){
 		set_external_temp();
 	}
+	check_can_data();
+
 	if (m_battery_volt.filter(battery) || init){
 		set_battery();
 	}
+	check_can_data();
+
 	if (m_fuel_level.filter(fuel_level) || init){
 		set_fuel();
 	}
+	check_can_data();
+
 	if (m_oil_level.set_value(oil) || init){
 		set_oil_level();
 	}
+	check_can_data();
+
 	if (m_coolant.set_value(coolant) || init){
 		set_coolant();
 	}
+	check_can_data();
 
 	if (m_speed.filter(speed) || init){
 		set_speed();
 	}
+	check_can_data();
+
 	if (m_aircon.set_value(aircon) || init){
 		set_aircon_status();
 	}
+	check_can_data();
 	if (m_monitor.is_fuel_data_available() || init){
-		m_fuel_stat_time = current_time;
 		set_consumption();
 	}
+	check_can_data();
+
 	if (cc_mode != m_cruise_control_mode || m_cruise_control_speed.set_value(cc_speed) || init){
 		m_cruise_control_mode = cc_mode;
 		set_cc_status();
 	}
+	check_can_data();
+
+	set_tires_info();
+
+	check_can_data();
+
 	set_door_status(init);
-//	if (m_monitor.must_sleep()){
-//		m_display.fillRect(70,70,30,30, SSD1351::RED);
-//	} else {
-//		m_display.fillRect(70,70,30,30, SSD1351::GREEN);
-//	}
-//	m_display.setTextColor(SSD1351::GREEN);
-//	m_display.setCursor(70,70);
-//	m_display.print(m_kilometers);
 }
 
