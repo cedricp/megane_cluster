@@ -19,8 +19,8 @@ public:
 		VERTICAL,
 		HORIZONTAL
 	};
-	Widget(String title, int x, int y, int w, int h, ORIENT o){
-		m_title = title;
+	Widget(char const* title, int x, int y, int w, int h, ORIENT o){
+		strcpy(m_title, title);
 		m_x = x;
 		m_y = y;
 		m_w = w;
@@ -28,10 +28,10 @@ public:
 		m_orient = o;
 	}
 
-	void draw(SSD1351& display, String value, int text_size, int color);
+	void draw(SSD1351& display, char const* value, int text_size, int color);
 
 private:
-	String m_title;
+	char m_title[16];
 	ORIENT m_orient;
 	int m_x, m_y, m_w, m_h;
 };

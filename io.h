@@ -152,6 +152,18 @@ public:
 		}
 	}
 
+	inline void set_on(){
+		*m_out |= m_bit;
+	}
+
+	inline void set_off(){
+		*m_out &= ~m_bit;
+	}
+
+	inline void toggle(){
+		if (*m_in & m_bit) set_off(); else set_on();
+	}
+
 	inline bool get(){
 		if (*m_in & m_bit) return true;
 		return false;

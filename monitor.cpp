@@ -31,7 +31,6 @@ void
 Can_monitor::handle_ecm() {
 	uint8_t fuel_data = m_engine_general[1];
 	uint8_t fuel_diff = fuel_data - m_last_fuel_data;
-	if (fuel_diff == 0) return;
 	unsigned long current_time = millis();
 	unsigned long diff_time = current_time - m_engine_last_timestamp;
 
@@ -47,35 +46,29 @@ Can_monitor::handle_ecm() {
 	m_last_fuel_data = fuel_data;
 }
 
-/*
- * 5.6 30
- *     100
- */
-
-String
-Can_monitor::get_instant_consumption()
+void
+Can_monitor::get_instant_consumption(char buff[8])
 {
-	char buf[20];
-	float speed = get_speed_raw();
-
-	// convert mm3 to liters (1L = 1dm3) 1dm3 = 1e6mm3
-	float dm3perhour = m_mm3perhour;
-	dm3perhour *= 1e-3f;
+	uint32_t speed = get_speed_raw();
+	uint32_t result = m_mm3perhour;
 	if (speed > 3000){
-		return dtostrf((dm3perhour * 10000.f) / speed, 4, 1, buf);
-	} else {
-		return dtostrf(dm3perhour, 4, 1, buf);
-	}
+		result = (result * 10000) / speed;
+	} 
+
+	div_t d = div(result, 1000);
+	snprintf(buff, 5, "%02i.%i", d.quot, d.rem / 100);
 }
 
-String
+char const*
 Can_monitor::get_instant_consumption_unit()
 {
-	float speed = get_speed_raw();
+	static char const *hundred = "100";
+	static char const *hour = "h  ";
+	uint16_t speed = get_speed_raw();
 	if (speed > 3000){
-		return "100";
+		return hundred;
 	} else {
-		return "h  ";
+		return hour;
 	}
 }
 

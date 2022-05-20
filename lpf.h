@@ -9,7 +9,6 @@ class Value_cache {
 public:
 	Value_cache(T val = 0){
 		m_val =0;
-		// m_val_changed = true;
 	}
 
 	T get_value(){
@@ -17,21 +16,10 @@ public:
 	}
 
 	bool set_value(T val){
-	/* 	if (m_val != val){
-			m_val_changed = true;
-	}*/
 		bool value_changed = m_val != val;
 		m_val = val;
 		return value_changed;
 	}
-
-/* 	bool value_changed(){
-		if (m_val_changed){
-			m_val_changed = false;
-			return true;
-		}
-		return false;
-	} */
 };
 
 class Lowpass_filter {

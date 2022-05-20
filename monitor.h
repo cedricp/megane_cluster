@@ -63,8 +63,8 @@ public:
 	~Can_monitor();
 
 	bool monitor();
-	String get_instant_consumption();
-	String get_instant_consumption_unit();
+	void get_instant_consumption(char buf[8]);
+	char const* get_instant_consumption_unit();
 
 	bool is_fuel_data_available(){
 		bool ret = m_fuel_stat_available;
@@ -191,9 +191,6 @@ public:
 		return m_mm3perhour;
 	}
 
-	inline float battery_voltage(){
-		return float(m_upc_data[2]) * 0.0625;
-	}
 	inline uint8_t battery_voltage_raw(){
 		return m_upc_data[2];
 	}

@@ -1,0 +1,10 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "CLUSTER.ino",
+    "port": "/dev/ttyACM0",
+    "programmer": "arduino:avrisp",
+    "buildPreferences": [
+        ["build.extra_flags", ""],
+        ["compiler.cpp.extra_flags", "-D__AVR_ATmega328P__ -DSERIAL_RX_BUFFER_SIZE=64"]
+    ]
+}
